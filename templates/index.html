@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <style>
+        #result img {
+            display: none;
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+    <script>
+        async function submitAudio() {
+            const fileInput = document.getElementById('audioFileInput');
+            const audioFile = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', audioFile);
+
+            const response = await fetch('/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            const resultContainer = document.getElementById('result');
+            resultContainer.innerHTML = '';  // Clear previous results
+
+            // Display the recognized phrase
+            const phraseElement = document.createElement('p');
+            phraseElement.textContent = `Recognized phrase: ${data.transcription}`;
+            resultContainer.appendChild(phraseElement);
+
+            if (data.result.type === 'video') {
+                const videoElement = document.createElement('video');
+                videoElement.src = `/video/${data.result.data}`;
+                videoElement.controls = true;
+                videoElement.autoplay = true;
+                resultContainer.appendChild(videoElement);
+            } else if (data.result.type === 'images') {
+                displayImagesWithInterval(data.result.data, resultContainer);
+            } else if (data.result.type === 'error') {
+                resultContainer.textContent = data.result.message;
+            }
+        }
+
+        function displayImagesWithInterval(images, container) {
+            const interval = 1000;  // Interval in milliseconds
+            let index = 0;
+
+            // Create image elements for each image
+            images.forEach((src, i) => {
+                const imgElement = document.createElement('img');
+                imgElement.src = src;
+                imgElement.style.display = i === 0 ? 'block' : 'none';  // Show the first image, hide others
+                container.appendChild(imgElement);
+            });
+
+            // Function to cycle through images
+            function showNextImage() {
+                const currentImage = container.querySelector(`img:nth-child(${index + 1})`);
+                currentImage.style.display = 'none';
+                index = (index + 1) % images.length;
+                const nextImage = container.querySelector(`img:nth-child(${index + 1})`);
+                nextImage.style.display = 'block';
+                if (index === 0) {
+                    clearInterval(intervalId);  // Stop the interval after one iteration
+                }
+            }
+
+            // Set interval to show next image
+            const intervalId = setInterval(showNextImage, interval);
+        }
+    </script>
+</head>
+<body>
+    <h1>Speech to Text</h1>
+    <input type="file" id="audioFileInput">
+    <button onclick="submitAudio()">Transcribe</button>
+    <div id="result"></div>
+</body>
+</html>
